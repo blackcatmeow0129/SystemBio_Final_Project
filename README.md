@@ -17,9 +17,9 @@
 | **3C** | Without self-competition, multi-hit prediction R | Windows + Server | ✅ |
 | **3D** | With self-competition, fitting R by # TFs | Mac (n1-4) + Server (n5-7) | ✅ |
 | **3E** | With self-competition, multi-hit prediction R | Server | ✅ |
-| **4D-K** | Thermodynamic + QSAM predictions | Windows | ✅ |
-| **4L/M** | Multi-hit prediction by TF count (data-only) | — | ✅ |
-| **5A/E/G** | Δactivity bar plots + TF activation coefficients | Windows | ✅ |
+| **4A-K** | Schematics + thermodynamic + QSAM predictions | Windows/Mac/Server | ✅ |
+| **4L/M** | Multi-hit prediction by TF count (data-only/full) | Windows/Mac/Server | ✅ |
+| **5A-K** | A/T substitution activity, TFBS, coefficients, DDA | Windows/Mac/Server | ✅ |
 
 ---
 
@@ -30,6 +30,7 @@ kang2024-cre-reproduction/
 │
 ├── README.md
 ├── requirements.txt
+├── run_reproduction.py                    # 공통 실행/명령 미리보기 launcher
 ├── .gitignore
 │
 ├── data/
@@ -63,8 +64,10 @@ kang2024-cre-reproduction/
 │   │       ├── generate_figure3de_xmls.py                    # XML 생성
 │   │       ├── run_figure3de_local.sh                        # Mac: n1-4
 │   │       ├── run_figure3de_server.sh                       # Server: n5-7
+│   │       ├── run_figure3de_windows.ps1                     # Windows: n 선택 실행
 │   │       ├── generate_figure3e_mh.py                       # multi-hit XML
 │   │       ├── run_figure3e_mh.sh                            # Server: Fig3E
+│   │       ├── run_figure3e_mh_windows.ps1                   # Windows: Fig3E
 │   │       └── plot_figure3de.py                             # 그래프 생성
 │   │
 │   ├── Figure4/
@@ -80,6 +83,10 @@ kang2024-cre-reproduction/
 └── protocols/
     ├── FIGURE2_PROTOCOL_KO.md
     ├── FIGURE3_PROTOCOL_KO.md
+    ├── FIGURE4_PROTOCOL_KO.md
+    ├── FIGURE5_PROTOCOL_KO.md
+    ├── PANEL_COVERAGE_KO.md
+    ├── RUN_ALL_FIGURES_KO.md
     └── TIPS_AND_TROUBLESHOOTING.md
 ```
 
@@ -148,21 +155,35 @@ python3 figures/Figure3/Figure3A/plot_figure3a.py
 
 ```bash
 python3 figures/Figure3/Figure3BC/build_figure3bc.py \
+    --forward-results /path/to/forward_results \
+    --reverse-results /path/to/reverse_results \
+    --supplementary-json /path/to/supplementary.json \
+    --multi-hit-fasta /path/to/MRPA_multihit.fa \
     --transcpp /path/to/transcpp \
-    --mmc4 /path/to/mmc4.xlsx \
-    --runs 4 --parallel 4
+    --runtime-dir /path/to/transcpp_runtime \
+    --output-dir /path/to/figure3bc_output \
+    --runs 4 --threads 4 --parallel 4
 ```
 
 #### Figure 3D/E (Mac + 서버 분담)
 
 ```bash
 # 1. XML 생성
-python3 figures/Figure3/Figure3DE/generate_figure3de_xmls.py
+python3 figures/Figure3/Figure3DE/generate_figure3de_xmls.py \
+    --data-dir /path/to/data \
+    --fits-dir ~/cre_reproduction/neoParSA/tests/transcpp/fits \
+    --num-threads 1
 
 # 2. 로컬 (Mac M1): n1~n4
+FITS=~/cre_reproduction/neoParSA/tests/transcpp/fits \
+TRANSCPP=~/cre_reproduction/transcpp/transcpp \
+PARALLEL=7 TF_COUNTS="1 2 3 4" \
 bash figures/Figure3/Figure3DE/run_figure3de_local.sh
 
 # 3. 서버: n5~n7 역순
+FITS=~/cre_reproduction/neoParSA/tests/transcpp/fits \
+TRANSCPP=~/cre_reproduction/transcpp/transcpp \
+PARALLEL=25 TF_COUNTS="7 6 5" \
 bash figures/Figure3/Figure3DE/run_figure3de_server.sh
 
 # 4. 로컬 rates → 서버 전송
@@ -170,20 +191,29 @@ scp -J jumpserver@서버주소 ~/cre_reproduction/.../fig3de_xmls/*.rates \
     user@server:~/cre_reproduction/.../fig3de_xmls/
 
 # 5. 서버: multi-hit XML 생성 + 실행 (Fig3E)
-python3 figures/Figure3/Figure3DE/generate_figure3e_mh.py
+python3 figures/Figure3/Figure3DE/generate_figure3e_mh.py \
+    --data-dir /path/to/data \
+    --fits-dir ~/cre_reproduction/neoParSA/tests/transcpp/fits
 bash figures/Figure3/Figure3DE/run_figure3e_mh.sh
 
 # 6. 그래프
 python3 figures/Figure3/Figure3DE/plot_figure3de.py
 ```
 
-#### Figure 4D-K (Windows 팀원 완성 / Mac+Server 가능)
+#### Figure 4A-K (Windows 팀원 완성 / Mac+Server 가능)
 
 ```bash
 python3 figures/Figure4/Figure4AK/reproduce_figure4.py \
     --best-xml /path/to/best_fit.xml \
     --mmc4 /path/to/mmc4.xlsx \
     --transcpp /path/to/transcpp
+```
+
+QSAM만 빠르게 확인:
+
+```bash
+python3 figures/Figure4/Figure4AK/generate_figure4k_qsam.py \
+    --mmc4 /path/to/mmc4.xlsx
 ```
 
 #### Figure 4L/M
@@ -201,13 +231,19 @@ python3 figures/Figure4/Figure4LM/train_figure4lm.py \
     --transcpp /path/to/transcpp
 ```
 
-#### Figure 5 (Windows 팀원 완성 / Mac+Server 가능)
+#### Figure 5A-K (Windows 팀원 완성 / Mac+Server 가능)
 
 ```bash
 python3 figures/Figure5/plot_figure5.py \
     --mmc2 /path/to/mmc2.xlsx \
     --mmc3 /path/to/mmc3.xlsx \
     --mmc4 /path/to/mmc4.xlsx
+```
+
+패널별 구현 체크리스트는 [`protocols/PANEL_COVERAGE_KO.md`](protocols/PANEL_COVERAGE_KO.md), 전체 실행 순서는 [`protocols/RUN_ALL_FIGURES_KO.md`](protocols/RUN_ALL_FIGURES_KO.md)를 먼저 보세요. 명령만 미리 확인하려면:
+
+```bash
+python3 run_reproduction.py --figure all --data-dir /path/to/data --best-xml /path/to/best_fit.xml --dry-run
 ```
 
 ---
