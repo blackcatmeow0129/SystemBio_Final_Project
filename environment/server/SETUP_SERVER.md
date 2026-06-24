@@ -9,21 +9,21 @@
 
 ```bash
 # 로컬에서 점프서버로
-ssh jumpserver@118.41.98.18
+ssh jumpserver@
 
 # 점프서버에서 서버로
-ssh hdhyun@220.149.111.120
+ssh 
 
 # 또는 로컬에서 한번에 (ProxyJump)
-ssh -J jumpserver@118.41.98.18 hdhyun@220.149.111.120
+ssh -J jumpserver@ (서버 이름)
 ```
 
 파일 전송:
 ```bash
 # 로컬 → 서버 (점프서버 경유)
-scp -J jumpserver@118.41.98.18 \
+scp -J jumpserver@ \
     ~/로컬/파일/*.rates \
-    hdhyun@220.149.111.120:~/서버/경로/
+    (서버이름):~/서버/경로/
 
 # 서버 결과 임시 공유 (다운로드용)
 curl -F "file=@figure.png" https://tmpfiles.org/api/v1/upload
@@ -85,7 +85,7 @@ make XML_CFLAGS="\`/usr/bin/xml2-config --cflags\`" \
 
 ```bash
 # 서버로 데이터 전송
-scp -J jumpserver@118.41.98.18 \
+scp -J jumpserver@ \
     ~/Desktop/SB_final/.../mmc*.xlsx \
     hdhyun@220.149.111.120:~/System_Biology_AS/
 ```
