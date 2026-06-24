@@ -276,6 +276,117 @@ python3 run_reproduction.py --figure all --data-dir /path/to/data --best-xml /pa
 
 ---
 
+## Fastest Recommended Order in Limited Environments
+
+제한된 환경에서 가장 빨리 결과를 확인하려면, **오래 걸리는 Figure 3 fitting을 마지막으로 미루고** 데이터/기존 rates로 그릴 수 있는 패널부터 확인하는 것을 권장합니다.
+
+### 0. 먼저 준비할 것
+
+| 선행 업무 | 이유 |
+|---|---|
+| `mmc2.xlsx`, `mmc3.xlsx`, `mmc4.xlsx`를 `data/`에 배치 | 모든 Figure의 공통 입력 |
+| Python 패키지 설치 | Figure 2/4 QSAM/5는 Python만으로 상당 부분 확인 가능 |
+| transcpp + printRate patch 빌드 | Figure 3 fitting, Figure 4 thermodynamic prediction에 필요 |
+| `fits/` 폴더와 `sequences/` 폴더 생성 | transcpp 상대경로 문제 방지 |
+
+### 1. 가장 먼저: Python-only 또는 기존 입력으로 빠르게 확인
+
+```bash
+# Figure 2D: PWM motif logo, 빠름
+python3 figures/Figure2/Figure2D/plot_fig2D_motif_logos.py
+
+# Figure 4G/H/I/K QSAM만 확인, transcpp 불필요
+python3 figures/Figure4/Figure4AK/generate_figure4k_qsam.py \
+    --mmc4 data/1-s2.0-S2589004223028249-mmc4.xlsx
+
+# Figure 5A-K: mmc2/3/4만으로 MPRA, PWM 기반 TFBS/DDA 확인 가능
+python3 figures/Figure5/plot_figure5.py \
+    --mmc2 data/1-s2.0-S2589004223028249-mmc2.xlsx \
+    --mmc3 data/1-s2.0-S2589004223028249-mmc3.xlsx \
+    --mmc4 data/1-s2.0-S2589004223028249-mmc4.xlsx
+```
+
+이 단계는 노트북에서도 빨리 돌릴 수 있다. 단, Figure 5의 lower model activity와 occupancy를 논문처럼 채우려면 `--xml`, `--rates`, `--unfold`를 추가하는 것이 좋다.
+
+### 2. 기존 rates/XML이 있으면 바로 그리기
+
+이미 `best_fit.xml`, `.rates`, Figure 3 결과가 있으면 새 fitting 없이 아래를 먼저 실행한다.
+
+```bash
+# Figure 2A-D: 기존 single-hit rates 필요
+python3 figures/Figure2/Figure2ABC/plot_fig2ABC_7TF_self_with_CREB1_BM_v15.py
+python3 figures/Figure2/Figure2ABCD/combine_figure2_abcd.py
+
+# Figure 4A-K: best_fit.xml + transcpp 필요
+python3 figures/Figure4/Figure4AK/reproduce_figure4.py \
+    --best-xml /path/to/best_fit.xml \
+    --mmc4 data/1-s2.0-S2589004223028249-mmc4.xlsx \
+    --transcpp /path/to/transcpp
+
+# Figure 4L/M: 기존 Figure 3 rates를 읽는 data-only 모드
+python3 figures/Figure4/Figure4LM/train_figure4lm.py \
+    --mode data-only \
+    --mmc4 data/1-s2.0-S2589004223028249-mmc4.xlsx \
+    --fits-dir ~/cre_reproduction/neoParSA/tests/transcpp/fits
+```
+
+### 3. 그 다음: Figure 3 중 계산량 작은 것부터
+
+Figure 3은 전체에서 시간이 가장 오래 걸린다. 제한된 환경에서는 아래 순서가 가장 낫다.
+
+| 순서 | 작업 | 권장 환경 | 이유 |
+|---:|---|---|---|
+| 1 | Figure 3A | 서버 또는 빠른 로컬 | 독립 실행, 결과 확인용 |
+| 2 | Figure 3B/C | Windows/서버 | no-self 모델, C는 B 재사용 |
+| 3 | Figure 3D n1-n4 | Mac M1/Windows | 상대적으로 작고 병렬 효율 좋음 |
+| 4 | Figure 3D n5-n7 | Linux 서버 | TF 수가 커져 오래 걸림 |
+| 5 | Figure 3E | Linux 서버 권장 | 722개 multi-hit 예측, Mac M1 segfault 경험 있음 |
+
+```bash
+# Figure 3D XML 생성
+python3 figures/Figure3/Figure3DE/generate_figure3de_xmls.py \
+    --data-dir data \
+    --fits-dir ~/cre_reproduction/neoParSA/tests/transcpp/fits \
+    --num-threads 1
+
+# Mac/Windows/로컬: n1-n4 먼저
+FITS=~/cre_reproduction/neoParSA/tests/transcpp/fits \
+TRANSCPP=~/cre_reproduction/transcpp/transcpp \
+PARALLEL=7 TF_COUNTS="1 2 3 4" \
+bash figures/Figure3/Figure3DE/run_figure3de_local.sh
+
+# 서버: n7부터 역순으로 n5까지
+FITS=~/cre_reproduction/neoParSA/tests/transcpp/fits \
+TRANSCPP=~/cre_reproduction/transcpp/transcpp \
+PARALLEL=25 TF_COUNTS="7 6 5" \
+nohup bash figures/Figure3/Figure3DE/run_figure3de_server.sh > fig3de_server.log 2>&1 &
+```
+
+### 4. 마지막: multi-hit 예측과 최종 plotting
+
+Figure 3D fitting rates가 모이면 Figure 3E는 새 학습이 아니라 forward prediction이다.
+
+```bash
+python3 figures/Figure3/Figure3DE/generate_figure3e_mh.py \
+    --data-dir data \
+    --fits-dir ~/cre_reproduction/neoParSA/tests/transcpp/fits
+
+bash figures/Figure3/Figure3DE/run_figure3e_mh.sh
+python3 figures/Figure3/Figure3DE/plot_figure3de.py
+```
+
+### 빠른 판단 기준
+
+| 상황 | 추천 |
+|---|---|
+| 노트북만 있음 | Figure 2, Figure 4 QSAM, Figure 5부터 확인 |
+| transcpp 빌드 전 | `generate_figure4k_qsam.py`, Figure 5 기본 실행부터 |
+| 기존 `.rates`가 있음 | 새 fitting보다 plotting/data-only 모드 우선 |
+| 서버 시간이 제한됨 | Figure 3D n5-n7과 Figure 3E만 서버에 배정 |
+| Figure 하나만 먼저 검증 | Figure 5 또는 Figure 4 QSAM이 가장 빠름 |
+
+---
+
 ## Citation
 
 ```bibtex
