@@ -98,3 +98,21 @@ echo "Fig3E mh: $(ls fig3de_mh_xmls/*_mh_v2.xml.rates 2>/dev/null | wc -l)/127" 
 echo "실행 중: $(ps aux | grep transcpp | grep -v grep | wc -l)개"
 ```
 
+---
+
+## 서버 접속 (점프서버 경유)
+
+```bash
+# 점프서버 → 서버
+ssh jumpserver@서버주소
+ssh 서버이름
+
+# 파일 전송 (로컬 → 서버)
+scp -J jumpserver@서버주소 \
+    ~/path/to/files/*.rates \
+    서버이름:~/path/to/destination/
+
+# 임시 파일 공유
+curl -F "file=@figure.png" https://tmpfiles.org/api/v1/upload
+# 출력 URL에서 /파일명 → /dl/파일명으로 변경하여 다운로드
+```
